@@ -379,7 +379,38 @@ mod tests {
             assert_eq!(sv.vector, expected_vector);
         }
 
+        #[test]
+        fn test_apply_cnot_to_all_zeros() {
+            let mut sv = Statevector::new();
+            sv.vector.insert(0, Complex::new(1.0, 0.0)); // |00⟩ state
 
+            let cnot_gate = cnot();
+            sv.apply_gate(cnot_gate, &[0, 1]);
+
+            let expected_vector = HashMap::from([
+                (0, Complex::new(1.0, 0.0)), // |00⟩ remains |00⟩
+            ]);
+
+            assert_eq!(sv.vector, expected_vector);
+        }
+
+
+        #[test]
+        fn test_apply_cnot_to_superposition() {
+            let mut sv = Statevector::new();
+            sv.vector.insert(0, Complex::new(1.0 / 2.0_f64.sqrt(), 0.0)); // |00⟩
+            sv.vector.insert(2, Complex::new(1.0 / 2.0_f64.sqrt(), 0.0)); // |10⟩
+
+            let cnot_gate = cnot();
+            sv.apply_gate(cnot_gate, &[0, 1]);
+
+            let expected_vector = HashMap::from([
+                (0, Complex::new(1.0 / 2.0_f64.sqrt(), 0.0)), // |00⟩
+                (3, Complex::new(1.0 / 2.0_f64.sqrt(), 0.0)), // |11⟩
+            ]);
+
+            assert_eq!(sv.vector, expected_vector);
+        }
 
     }
 
@@ -428,6 +459,29 @@ mod tests {
             sv.validate().unwrap(); // Validation fails due to the invalid state.
         }
 
+        #[test]
+        #[should_panic(expected = "Qubit indices must be within the range of the quantum system.")]
+        fn test_invalid_gate_size() {
+            let mut sv = Statevector::new();
+            sv.vector.insert(0, Complex::new(1.0, 0.0));
+
+            let cnot_gate = cnot();
+            sv.apply_gate(cnot_gate, &[0, 2]); // Invalid: qubit index out of range
+        }
+
+        #[test]
+        fn test_cleanup_removes_near_zero_amplitudes() {
+            let mut sv = Statevector::new();
+            sv.vector.insert(0, Complex::new(1e-12, 1e-12)); // Small amplitude
+            sv.vector.insert(1, Complex::new(1.0, 0.0));
+
+            sv.normalize_and_cleanup();
+
+            assert_eq!(sv.vector.len(), 1);
+            assert!(sv.vector.contains_key(&1), "Only |1⟩ should remain.");
+        }
+
+
 
     }
 
@@ -439,6 +493,30 @@ mod tests {
         fn test_apply_gate_to_empty_statevector() {
             let sv = create_statevector(vec![]); // Empty statevector
             assert!(sv.validate().is_err(), "Validation should fail for empty statevector");
+        }
+
+        #[test]
+        fn test_no_op_on_empty_statevector() {
+            let mut sv = Statevector::new();
+            sv.vector.clear(); // Clear all states
+
+            let identity_gate = identity_gate();
+            sv.apply_gate(identity_gate, &[0]);
+
+            assert!(sv.vector.is_empty(), "Statevector should remain empty.");
+        }
+
+        #[test]
+        fn test_apply_identity_gate_to_zero_statevector() {
+            let mut sv = Statevector::new();
+            let identity_gate = identity_gate();
+            sv.apply_gate(identity_gate, &[0]);
+
+            let expected_vector = HashMap::from([
+                (0, Complex::new(1.0, 0.0)), // |0⟩ remains |0⟩
+            ]);
+
+            assert_eq!(sv.vector, expected_vector);
         }
     }
 }
