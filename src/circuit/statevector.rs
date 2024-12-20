@@ -121,11 +121,14 @@ impl Statevector {
         // Compute normalization factor
         let norm: f64 = self.vector.values().map(|amp| amp.norm_sqr()).sum();
 
-        let scale = norm.sqrt();
-        for amp in self.vector.values_mut() {
-            *amp /= scale;
+        if norm > 0.0 {
+            let scale = norm.sqrt();
+            for amp in self.vector.values_mut() {
+                *amp /= scale;
+            }
         }
     }
+
 
 
 
@@ -139,15 +142,34 @@ impl Statevector {
     pub fn apply_gate(&mut self, gate: Gate, qubits: &[usize]) {
         println!("vector size {}", self.num_qubits());
         println!("Is the vector empty? {}", self.vector.is_empty());
+
         if self.vector.is_empty() {
             panic!("Cannot apply a gate to an empty statevector.");
         }
 
-        let num_qubits = self.num_qubits();
-        if qubits.is_empty() || qubits.iter().any(|&q| q >= num_qubits) {
+        let max_qubit = *qubits.iter().max().unwrap();
+
+        // Validate qubit indices before dynamic expansion
+        if max_qubit >= usize::BITS as usize {
             panic!("Qubit indices must be within the range of the quantum system.");
         }
 
+        if qubits.iter().any(|&q| q >= self.num_qubits()) {
+            panic!("Qubit indices must be within the range of the quantum system.");
+        }
+
+        // Dynamically expand the statevector if necessary
+        let num_qubits = self.num_qubits();
+        if max_qubit >= num_qubits {
+            let new_max_state = 1 << (max_qubit + 1); // 2^(max_qubit + 1)
+            for i in 0..new_max_state {
+                if !self.vector.contains_key(&i) {
+                    self.vector.insert(i, Complex::new(0.0, 0.0));
+                }
+            }
+        }
+
+        // Apply the gate
         match gate {
             Gate::Single(single_qubit_gate) => self.apply_single_qubit_gate(&single_qubit_gate, qubits[0]),
             Gate::Two(two_qubit_gate) => self.apply_multi_qubit_gate(&two_qubit_gate, qubits),
@@ -155,6 +177,12 @@ impl Statevector {
 
         self.normalize_and_cleanup();
     }
+
+
+
+
+
+
 
 
 
@@ -245,14 +273,12 @@ impl Statevector {
 
 
 
-    /// Map a global state index to the gate-specific index.
     fn map_to_gate_index(&self, state: usize, qubits: &[usize]) -> usize {
         qubits.iter().enumerate().fold(0, |acc, (i, &qubit)| {
             acc | (((state >> qubit) & 1) << i)
         })
     }
 
-    /// Map a gate-specific output index back to the global state index.
     fn map_from_gate_index(&self, state: usize, qubits: &[usize], output_index: usize) -> usize {
         let mut new_state = state;
         for (i, &qubit) in qubits.iter().enumerate() {
@@ -434,43 +460,59 @@ mod tests {
     }
 
     // todo: verify and fix it!
-    // mod evolution {
-    //     use super::*;
-    //
-    //     #[test]
-    //     fn test_sequential_gates() {
-    //         let mut sv = Statevector::new();
-    //         sv.vector.insert(0, Complex::new(1.0, 0.0)); // Start with |0⟩
-    //
-    //         sv.apply_gate(hadamard(), &[0]); // Apply Hadamard
-    //         sv.apply_gate(identity_gate(), &[0]); // Apply Identity (No-op)
-    //
-    //         let scale = 1.0 / 2.0_f64.sqrt();
-    //         let expected_vector = HashMap::from([
-    //             (0, Complex::new(scale, 0.0)), // Superposition |0⟩
-    //             (1, Complex::new(scale, 0.0)), // Superposition |1⟩
-    //         ]);
-    //
-    //         assert_eq!(sv.vector, expected_vector);
-    //     }
-    //
-    //     #[test]
-    //     fn test_complex_gate_combination() {
-    //         let mut sv = Statevector::new();
-    //         sv.vector.insert(0, Complex::new(1.0, 0.0)); // Start with |0⟩
-    //
-    //         sv.apply_gate(hadamard(), &[0]); // Hadamard to qubit 0
-    //         sv.apply_gate(cnot(), &[0, 1]); // CNOT with qubit 0 as control
-    //
-    //         let scale = 1.0 / 2.0_f64.sqrt();
-    //         let expected_vector = HashMap::from([
-    //             (0, Complex::new(scale, 0.0)), // |00⟩
-    //             (3, Complex::new(scale, 0.0)), // |11⟩
-    //         ]);
-    //
-    //         assert_eq!(sv.vector, expected_vector);
-    //     }
-    // }
+    mod evolution {
+        use super::*;
+
+        #[test]
+        fn test_sequential_gates() {
+            let mut sv = Statevector::new();
+            sv.vector.insert(0, Complex::new(1.0, 0.0)); // Start with |0⟩
+
+            sv.apply_gate(hadamard(), &[0]); // Apply Hadamard
+            sv.apply_gate(identity_gate(), &[0]); // Apply Identity (No-op)
+
+            let scale = 1.0 / 2.0_f64.sqrt();
+            let expected_vector = HashMap::from([
+                (0, Complex::new(scale, 0.0)), // Superposition |0⟩
+                (1, Complex::new(scale, 0.0)), // Superposition |1⟩
+            ]);
+
+            for (&key, &expected_value) in &expected_vector {
+                let actual_value = sv.vector.get(&key).cloned().unwrap_or(Complex::new(0.0, 0.0));
+                assert!(
+                    (actual_value - expected_value).norm() < 1e-10,
+                    "Mismatch at state |{:b}⟩: expected {:?}, got {:?}",
+                    key, expected_value, actual_value
+                );
+            }
+        }
+
+
+        #[test]
+        fn test_complex_gate_combination() {
+            let mut sv = Statevector::new();
+            sv.vector.insert(0, Complex::new(1.0, 0.0)); // Start with |0⟩
+
+            sv.apply_gate(hadamard(), &[0]); // Apply Hadamard to qubit 0
+            sv.apply_gate(cnot(), &[0, 1]); // Apply CNOT with qubit 0 as control
+
+            let scale = 1.0 / 2.0_f64.sqrt();
+            let expected_vector = HashMap::from([
+                (0, Complex::new(scale, 0.0)), // |00⟩
+                (3, Complex::new(scale, 0.0)), // |11⟩
+            ]);
+
+            for (&key, &expected_value) in &expected_vector {
+                let actual_value = sv.vector.get(&key).cloned().unwrap_or(Complex::new(0.0, 0.0));
+                assert!(
+                    (actual_value - expected_value).norm() < 1e-10,
+                    "Mismatch at state |{:b}⟩: expected {:?}, got {:?}",
+                    key, expected_value, actual_value
+                );
+            }
+        }
+
+    }
 
     /// Measurement Tests
     mod measurement {
