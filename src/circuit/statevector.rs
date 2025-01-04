@@ -386,7 +386,6 @@ mod tests {
             assert_eq!(sv.vector, expected_vector);
         }
 
-        // todo: verify and fix it!
         #[test]
         fn test_apply_cnot_to_all_zeros() {
             let mut sv = Statevector::new();
@@ -434,43 +433,67 @@ mod tests {
     }
 
     // todo: verify and fix it!
-    // mod evolution {
-    //     use super::*;
-    //
-    //     #[test]
-    //     fn test_sequential_gates() {
-    //         let mut sv = Statevector::new();
-    //         sv.vector.insert(0, Complex::new(1.0, 0.0)); // Start with |0⟩
-    //
-    //         sv.apply_gate(hadamard(), &[0]); // Apply Hadamard
-    //         sv.apply_gate(identity_gate(), &[0]); // Apply Identity (No-op)
-    //
-    //         let scale = 1.0 / 2.0_f64.sqrt();
-    //         let expected_vector = HashMap::from([
-    //             (0, Complex::new(scale, 0.0)), // Superposition |0⟩
-    //             (1, Complex::new(scale, 0.0)), // Superposition |1⟩
-    //         ]);
-    //
-    //         assert_eq!(sv.vector, expected_vector);
-    //     }
-    //
-    //     #[test]
-    //     fn test_complex_gate_combination() {
-    //         let mut sv = Statevector::new();
-    //         sv.vector.insert(0, Complex::new(1.0, 0.0)); // Start with |0⟩
-    //
-    //         sv.apply_gate(hadamard(), &[0]); // Hadamard to qubit 0
-    //         sv.apply_gate(cnot(), &[0, 1]); // CNOT with qubit 0 as control
-    //
-    //         let scale = 1.0 / 2.0_f64.sqrt();
-    //         let expected_vector = HashMap::from([
-    //             (0, Complex::new(scale, 0.0)), // |00⟩
-    //             (3, Complex::new(scale, 0.0)), // |11⟩
-    //         ]);
-    //
-    //         assert_eq!(sv.vector, expected_vector);
-    //     }
-    // }
+    mod evolution {
+        use super::*;
+        fn approx_eq(
+            a: &HashMap<usize, Complex<f64>>,
+            b: &HashMap<usize, Complex<f64>>,
+            tol: f64,
+        ) -> bool {
+            // Lengths must match
+            if a.len() != b.len() {
+                return false;
+            }
+
+            // Compare each key-value pair
+            a.iter().all(|(&key, &val_a)| {
+                if let Some(&val_b) = b.get(&key) {
+                    (val_a - val_b).norm() < tol // Compare the Complex<f64> values with tolerance
+                } else {
+                    false // Key mismatch
+                }
+            })
+        }
+
+        #[test]
+        fn test_sequential_gates() {
+            let mut sv = Statevector::new();
+            sv.vector.insert(0, Complex::new(1.0, 0.0)); // Start with |0⟩
+
+            sv.apply_gate(hadamard(), &[0]); // Apply Hadamard
+            sv.apply_gate(identity_gate(), &[0]); // Apply Identity (No-op)
+
+            let scale = 1.0 / 2.0_f64.sqrt();
+            let expected_vector = HashMap::from([
+                (0, Complex::new(scale, 0.0)), // Superposition |0⟩
+                (1, Complex::new(scale, 0.0)), // Superposition |1⟩
+            ]);
+
+            assert!(
+                approx_eq(&sv.vector, &expected_vector, 1e-10),
+                "Statevector mismatch: left = {:?}, right = {:?}",
+                sv.vector,
+                expected_vector
+            );
+        }
+
+        #[test]
+        fn test_complex_gate_combination() {
+            let mut sv = Statevector::new();
+            sv.vector.insert(0, Complex::new(1.0, 0.0)); // Start with |0⟩
+
+            sv.apply_gate(hadamard(), &[0]); // Hadamard to qubit 0
+            sv.apply_gate(cnot(), &[0, 1]); // CNOT with qubit 0 as control
+
+            let scale = 1.0 / 2.0_f64.sqrt();
+            let expected_vector = HashMap::from([
+                (0, Complex::new(scale, 0.0)), // |00⟩
+                (3, Complex::new(scale, 0.0)), // |11⟩
+            ]);
+
+            assert_eq!(sv.vector, expected_vector);
+        }
+    }
 
     /// Measurement Tests
     mod measurement {
