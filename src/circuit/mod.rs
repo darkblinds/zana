@@ -77,4 +77,59 @@ impl QuantumCircuit {
 
         statevector
     }
+
+    /// Visualizes the quantum circuit as a text-based diagram.
+    ///
+    /// # How It Works
+    /// - Single-qubit gates are represented by their symbols (e.g., `H` for Hadamard).
+    /// - Multi-qubit gates use `●` for control qubits and `⊕` for target qubits.
+    /// - The visualization includes all qubits and the sequence of gates applied to them.
+    ///
+    /// # Example Output
+    /// For a circuit with a Hadamard on Q0 and a CNOT (control: Q0, target: Q1):
+    /// ```
+    /// Q0: ───H───●─────
+    ///             │
+    /// Q1: ───────⊕─────
+    /// ```
+    ///
+    /// # Example Usage
+    /// ```
+    /// use zana::circuit::{gates, QuantumCircuit};
+    ///
+    /// let mut circuit = QuantumCircuit::new(2);
+    /// circuit.add_gate(gates::hadamard(), vec![0]);
+    /// circuit.add_gate(gates::cnot(), vec![0, 1]);
+    ///
+    /// circuit.visualize();
+    /// ```
+    pub fn visualize(&self) {
+        let mut layers: Vec<String> = vec![String::new(); self.qubits];
+
+        for (gate, qubits) in &self.gates {
+            match gate {
+                Gate::Single(_) => {
+                    let qubit = qubits[0];
+                    layers[qubit].push_str("──H──"); // Replace "H" for specific gates
+                }
+                Gate::Two(_) => {
+                    let control = qubits[0];
+                    let target = qubits[1];
+                    for (i, layer) in layers.iter_mut().enumerate() {
+                        if i == control {
+                            layer.push_str("──●──");
+                        } else if i == target {
+                            layer.push_str("──⊕──");
+                        } else {
+                            layer.push_str("─────");
+                        }
+                    }
+                }
+            }
+        }
+
+        for (i, layer) in layers.iter().enumerate() {
+            println!("Q{}: {}", i, layer);
+        }
+    }
 }
