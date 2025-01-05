@@ -1,3 +1,7 @@
+mod basic_circuit;
+mod medium_circuit;
+mod complex_circuit;
+
 use zana::circuit::{gates, QuantumCircuit};
 
 /// Demonstrates the usage of the `QuantumCircuit` with single and multi-qubit gates.

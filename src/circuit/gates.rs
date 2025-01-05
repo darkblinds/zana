@@ -7,6 +7,7 @@ use num_complex::Complex;
 /// Represents a quantum gate.
 /// It can be either a single-qubit gate or a two-qubit gate
 #[derive(Debug)] // Automatically implement the Debug trait
+#[derive(Clone)]
 pub enum Gate {
     Single([[Complex<f64>; 2]; 2]), // Single-qubit gate (2x2 matrix)
     Two([[Complex<f64>; 4]; 4]),    // Two-qubit gate (4x4 matrix)

@@ -2,6 +2,7 @@ pub mod gates;        // Expose gates.rs
 pub mod statevector;  // Expose statevector.rs
 
 use crate::circuit::gates::Gate;
+use crate::circuit::statevector::Statevector;
 
 /// Represents a quantum circuit.
 ///
@@ -58,5 +59,22 @@ impl QuantumCircuit {
         }
 
         self.gates.push((gate, qubits));
+    }
+
+    /// Simulates the quantum circuit and returns the final statevector.
+    ///
+    /// # Returns
+    /// - A `Statevector` representing the quantum system's state after all gates have been applied.
+    ///
+    /// # Panics
+    /// - If the circuit contains invalid gates or qubit indices.
+    pub fn simulate(&self) -> Statevector {
+        let mut statevector = Statevector::new(self.qubits);
+
+        for (gate, qubits) in &self.gates {
+            statevector.apply_gate(gate.clone(), qubits.as_slice()); // Clone the gate
+        }
+
+        statevector
     }
 }

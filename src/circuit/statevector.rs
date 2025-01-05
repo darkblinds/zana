@@ -3,6 +3,7 @@ use num_complex::Complex;
 use crate::circuit::gates::Gate;
 
 /// Represents the statevector of a quantum system.
+#[derive(Debug)]
 pub struct Statevector {
     /// The statevector is represented as a list of complex amplitudes.
     /// It can tell everything about the quantum system at a given time

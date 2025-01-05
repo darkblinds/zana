@@ -13,3 +13,16 @@ ndarray = "0.15"
 thiserror = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 num-complex = "0.4.6"
+
+[[example]]
+name = "basic_circuit"
+path = "examples/circuits/basic_circuit.rs"
+
+[[example]]
+name = "medium_circuit"
+path = "examples/circuits/medium_circuit.rs"
+
+[[example]]
+name = "complex_circuit"
+path = "examples/circuits/complex_circuit.rs"
+
