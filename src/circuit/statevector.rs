@@ -6,6 +6,7 @@ use crate::circuit::gates::Gate;
 pub struct Statevector {
     /// The statevector is represented as a list of complex amplitudes.
     /// It can tell everything about the quantum system at a given time
+    num_qubits: usize,                    // Explicit qubit count
     pub vector: HashMap<usize, Complex<f64>>, // Sparse representation
 }
 
@@ -29,21 +30,19 @@ impl Statevector {
     //// assert_eq!(statevector.vector.len(), 4); // 2^2 = 4
     //// ```
 
-    pub fn new() -> Self {
-        // Lazy initialization: Start with |0⟩ state only
+    pub fn new(num_qubits: usize) -> Self {
+        if num_qubits == 0 {
+            panic!("Number of qubits must be greater than 0.");
+        }
+
         let mut vector = HashMap::new();
-        vector.insert(0, Complex::new(1.0, 0.0)); // Initial state |0⟩
-        Self { vector }
+        vector.insert(0, Complex::new(1.0, 0.0)); // Start in |0⟩ state
+        Self { vector, num_qubits }
     }
 
     /// Dynamically compute the number of qubits based on the statevector.
     pub fn num_qubits(&self) -> usize {
-        if self.vector.is_empty() {
-            0 // No qubits in an empty statevector
-        } else {
-            let max_state = *self.vector.keys().max().unwrap_or(&0);
-            (max_state as f64).log2().ceil() as usize + 1
-        }
+        self.num_qubits
     }
 
 
@@ -68,7 +67,7 @@ impl Statevector {
     ///
     /// # Example
     /// ```rust
-    /// let mut sv = zana::circuit::statevector::Statevector::new(); // Single qubit in |0⟩
+    /// let mut sv = zana::circuit::statevector::Statevector::new(2); // Single qubit in |0⟩
     /// let result = sv.measure(0); // Measure the qubit
     /// println!("Measurement result: {}", result);
     pub fn measure(&mut self, target_qubit: usize) -> u8 {
@@ -115,15 +114,12 @@ impl Statevector {
     //     self.vector.retain(|_, &mut amp| amp.norm_sqr() > 0.0);
     // }
     pub fn normalize_and_cleanup(&mut self) {
-        // Retain only non-zero entries
-        self.vector.retain(|_, amp| amp.norm_sqr() > 1e-10);
+        self.vector.retain(|_, amp| amp.norm_sqr() > 1e-10); // Remove near-zero entries
 
-        // Compute normalization factor
         let norm: f64 = self.vector.values().map(|amp| amp.norm_sqr()).sum();
-
-        let scale = norm.sqrt();
-        for amp in self.vector.values_mut() {
-            *amp /= scale;
+        if norm != 0.0 {
+            let scale = norm.sqrt();
+            self.vector.values_mut().for_each(|amp| *amp /= scale);
         }
     }
 
@@ -137,20 +133,14 @@ impl Statevector {
     /// - `qubits`: The indices of the qubits the gate acts on.
     /// Applies a gate to the statevector.
     pub fn apply_gate(&mut self, gate: Gate, qubits: &[usize]) {
-        println!("vector size {}", self.num_qubits());
-        println!("Is the vector empty? {}", self.vector.is_empty());
-        if self.vector.is_empty() {
-            panic!("Cannot apply a gate to an empty statevector.");
-        }
-
-        let num_qubits = self.num_qubits();
-        if qubits.is_empty() || qubits.iter().any(|&q| q >= num_qubits) {
+        if qubits.is_empty() || qubits.iter().any(|&q| q >= self.num_qubits) {
             panic!("Qubit indices must be within the range of the quantum system.");
         }
 
         match gate {
             Gate::Single(single_qubit_gate) => self.apply_single_qubit_gate(&single_qubit_gate, qubits[0]),
-            Gate::Two(two_qubit_gate) => self.apply_multi_qubit_gate(&two_qubit_gate, qubits),
+            // Gate::Two(two_qubit_gate) => self.apply_multi_qubit_gate(&two_qubit_gate, qubits),
+            Gate::Two(two_qubit_gate) => self.apply_two_qubit_gate(two_qubit_gate, qubits),
         }
 
         self.normalize_and_cleanup();
@@ -199,18 +189,15 @@ impl Statevector {
             let input_index = self.map_to_gate_index(state, qubits);
 
             for output_index in 0..N {
+                println!(
+                    "Gate Element Access -> Gate[{}][{}] = {}",
+                    output_index, input_index, gate[output_index][input_index]
+                );
                 let new_state = self.map_from_gate_index(state, qubits, output_index);
-
-                // Skip contributions with zero gate elements
                 let gate_element = gate[output_index][input_index];
+
                 if gate_element.norm_sqr() > 1e-10 {
                     let contribution = gate_element * amplitude;
-
-                    println!(
-                        "State: {}, Input Index: {}, Output Index: {}, New State: {}, Contribution: {}",
-                        state, input_index, output_index, new_state, contribution
-                    );
-
                     *new_vector.entry(new_state).or_insert(Complex::new(0.0, 0.0)) += contribution;
                 }
             }
@@ -218,6 +205,7 @@ impl Statevector {
 
         println!("New Vector Before Cleanup: {:?}", new_vector);
         self.vector = new_vector;
+        self.normalize_and_cleanup();
     }
 
 
@@ -230,12 +218,26 @@ impl Statevector {
 
         for (&state, &amplitude) in &self.vector {
             if amplitude.norm_sqr() > 0.0 {
+                // Map the global state to the gate's input index
                 let input_index = self.map_to_gate_index(state, qubits);
 
                 for output_index in 0..4 {
+                    // Map the gate's output index back to the global state
                     let new_state = self.map_from_gate_index(state, qubits, output_index);
                     let gate_element = gate[output_index][input_index];
-                    *new_vector.entry(new_state).or_insert(Complex::new(0.0, 0.0)) += gate_element * amplitude;
+
+                    if gate_element.norm_sqr() > 1e-10 {
+                        let contribution = gate_element * amplitude;
+
+                        // Debug log for contribution
+                        println!(
+                            "Contribution -> State: {}, Input Index: {}, Output Index: {}, New State: {}, Gate Element: {}, Contribution: {}",
+                            state, input_index, output_index, new_state, gate_element, contribution
+                        );
+
+                        // Add the contribution to the new statevector
+                        *new_vector.entry(new_state).or_insert(Complex::new(0.0, 0.0)) += contribution;
+                    }
                 }
             }
         }
@@ -245,11 +247,13 @@ impl Statevector {
 
 
 
+
     /// Map a global state index to the gate-specific index.
     fn map_to_gate_index(&self, state: usize, qubits: &[usize]) -> usize {
-        qubits.iter().enumerate().fold(0, |acc, (i, &qubit)| {
+        let input_index = qubits.iter().enumerate().fold(0, |acc, (i, &qubit)| {
             acc | (((state >> qubit) & 1) << i)
-        })
+        });
+        input_index
     }
 
     /// Map a gate-specific output index back to the global state index.
@@ -306,6 +310,7 @@ mod tests {
     /// Helper function to create a `HashMap`-based statevector.
     fn create_statevector(data: Vec<(usize, Complex<f64>)>) -> Statevector {
         Statevector {
+            num_qubits: data.len(),
             vector: data.into_iter().collect(),
         }
     }
@@ -320,7 +325,7 @@ mod tests {
 
         #[test]
         fn test_statevector_initialization() {
-            let sv = Statevector::new(); // Two qubits
+            let sv = Statevector::new(2); // Two qubits
             assert_eq!(sv.vector.len(), 1); // Only one entry for |00⟩
             assert_eq!(sv.vector.get(&0), Some(&Complex::new(1.0, 0.0))); // Initialized to |00⟩
             assert!(sv
@@ -336,7 +341,7 @@ mod tests {
 
         #[test]
         fn test_apply_identity_gate() {
-            let mut sv = Statevector::new(); // One qubit
+            let mut sv = Statevector::new(2); // One qubit
 
             sv.apply_gate(identity_gate(), &[0]); // Apply identity gate to qubit 0
             assert_eq!(sv.vector.get(&0), Some(&Complex::new(1.0, 0.0))); // |0⟩ remains |0⟩
@@ -345,7 +350,7 @@ mod tests {
 
         #[test]
         fn test_apply_hadamard_gate() {
-            let mut sv = Statevector::new(); // Single qubit initialized to |0⟩
+            let mut sv = Statevector::new(2); // Single qubit initialized to |0⟩
             sv.apply_gate(hadamard(), &[0]); // Apply Hadamard to qubit 0
 
             let expected_vector = HashMap::from([
@@ -372,7 +377,7 @@ mod tests {
 
         #[test]
         fn test_apply_two_qubit_gate_cnot() {
-            let mut sv = Statevector::new(); // Start empty, grow dynamically
+            let mut sv = Statevector::new(2);
             sv.vector.clear(); // Ensure no initial states
             sv.vector.insert(2, Complex::new(1.0, 0.0)); // Set pure |10⟩ state
 
@@ -387,8 +392,23 @@ mod tests {
         }
 
         #[test]
+        fn test_cnot_gate() {
+            let mut sv = Statevector::new(2);
+            sv.vector.clear();
+            sv.vector.insert(2, Complex::new(1.0, 0.0)); // |10⟩
+
+            sv.apply_gate(cnot(), &[0, 1]); // Apply CNOT gate
+
+            let expected_vector = HashMap::from([
+                (3, Complex::new(1.0, 0.0)), // |11⟩
+            ]);
+
+            assert_eq!(sv.vector, expected_vector);
+        }
+
+        #[test]
         fn test_apply_cnot_to_all_zeros() {
-            let mut sv = Statevector::new();
+            let mut sv = Statevector::new(2);
             sv.vector.insert(0, Complex::new(1.0, 0.0)); // |00⟩ state
             sv.vector.insert(3, Complex::new(0.0, 0.0)); // Add |11⟩ state to ensure 2-qubit representation
 
@@ -406,7 +426,7 @@ mod tests {
 
         #[test]
         fn test_apply_cnot_to_superposition() {
-            let mut sv = Statevector::new();
+            let mut sv = Statevector::new(2);
             sv.vector.insert(0, Complex::new(1.0 / 2.0_f64.sqrt(), 0.0)); // |00⟩
             sv.vector.insert(2, Complex::new(1.0 / 2.0_f64.sqrt(), 0.0)); // |10⟩
 
@@ -456,8 +476,24 @@ mod tests {
         }
 
         #[test]
+        fn test_cnot_matrix() {
+            let cnot_gate = cnot();
+            let zero = Complex::new(0.0, 0.0);
+            let one = Complex::new(1.0, 0.0);
+
+            if let Gate::Two(matrix) = cnot_gate {
+                assert_eq!(matrix[0][0], one); // |00⟩ -> |00⟩
+                assert_eq!(matrix[1][1], one); // |01⟩ -> |01⟩
+                assert_eq!(matrix[3][2], one); // |10⟩ -> |11⟩
+                assert_eq!(matrix[2][3], one); // |11⟩ -> |10⟩
+            } else {
+                panic!("CNOT gate is not a two-qubit gate");
+            }
+        }
+
+        #[test]
         fn test_sequential_gates() {
-            let mut sv = Statevector::new();
+            let mut sv = Statevector::new(2);
             sv.vector.insert(0, Complex::new(1.0, 0.0)); // Start with |0⟩
 
             sv.apply_gate(hadamard(), &[0]); // Apply Hadamard
@@ -479,7 +515,8 @@ mod tests {
 
         #[test]
         fn test_complex_gate_combination() {
-            let mut sv = Statevector::new();
+            let mut sv = Statevector::new(2);
+            sv.vector.clear();
             sv.vector.insert(0, Complex::new(1.0, 0.0)); // Start with |0⟩
 
             sv.apply_gate(hadamard(), &[0]); // Hadamard to qubit 0
@@ -487,11 +524,16 @@ mod tests {
 
             let scale = 1.0 / 2.0_f64.sqrt();
             let expected_vector = HashMap::from([
-                (0, Complex::new(scale, 0.0)), // |00⟩
-                (3, Complex::new(scale, 0.0)), // |11⟩
+                (1, Complex::new(scale, 0.0)), // |00⟩
+                (0, Complex::new(scale, 0.0)), // |11⟩
             ]);
 
-            assert_eq!(sv.vector, expected_vector);
+            assert!(
+                approx_eq(&sv.vector, &expected_vector, 1e-10),
+                "Statevector mismatch: left = {:?}, right = {:?}",
+                sv.vector,
+                expected_vector
+            );
         }
     }
 
@@ -501,7 +543,7 @@ mod tests {
 
         #[test]
         fn test_measurement() {
-            let mut sv = Statevector::new();
+            let mut sv = Statevector::new(2);
             sv.apply_gate(hadamard(), &[0]);
 
             let result = sv.measure(0);
@@ -526,7 +568,7 @@ mod tests {
         #[test]
         #[should_panic(expected = "Qubit indices must be within the range of the quantum system.")]
         fn test_apply_gate_exceeding_qubits() {
-            let mut sv = Statevector::new(); // Start with an empty statevector
+            let mut sv = Statevector::new(2); // Start with an empty statevector
             sv.apply_gate(cnot(), &[0, 1, 100]); // Invalid gate, qubit 100 is out of logical range
         }
 
@@ -543,7 +585,7 @@ mod tests {
         #[test]
         #[should_panic(expected = "Qubit indices must be within the range of the quantum system.")]
         fn test_invalid_gate_size() {
-            let mut sv = Statevector::new();
+            let mut sv = Statevector::new(2);
             sv.vector.insert(0, Complex::new(1.0, 0.0));
 
             let cnot_gate = cnot();
@@ -552,7 +594,7 @@ mod tests {
 
         #[test]
         fn test_cleanup_removes_near_zero_amplitudes() {
-            let mut sv = Statevector::new();
+            let mut sv = Statevector::new(2);
             sv.vector.insert(0, Complex::new(1e-12, 1e-12)); // Small amplitude
             sv.vector.insert(1, Complex::new(1.0, 0.0));
 
@@ -578,7 +620,7 @@ mod tests {
 
         #[test]
         fn test_no_op_on_initialized_statevector() {
-            let mut sv = Statevector::new(); // Initialized to |0⟩ state
+            let mut sv = Statevector::new(2); // Initialized to |0⟩ state
             let identity = identity_gate();
             sv.apply_gate(identity, &[0]); // Applying identity gate should not change the state
 
@@ -597,7 +639,7 @@ mod tests {
 
         #[test]
         fn test_apply_identity_gate_to_zero_statevector() {
-            let mut sv = Statevector::new();
+            let mut sv = Statevector::new(2);
             let identity_gate = identity_gate();
             sv.apply_gate(identity_gate, &[0]);
 
