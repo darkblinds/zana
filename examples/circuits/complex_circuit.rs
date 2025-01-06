@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         "heatmap-file" => {
             println!("Generating Heatmap...");
-            circuit.visualize_heatmap(Some("examples/circuits/heatmap.png"))?;
+            circuit.visualize_heatmap(Some("examples/circuits/complex_circuit_heatmap.png"))?;
             println!("Heatmap generated.");
         }
         "both" => {

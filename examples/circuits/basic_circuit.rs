@@ -6,14 +6,16 @@ use zana::circuit::{gates, QuantumCircuit};
 /// Takes a command-line argument to control the output:
 /// - `raw`: Runs the simulation and outputs the raw statevector.
 /// - `visual`: Visualizes the circuit.
+/// - `heatmap-terminal`: Displays the heatmap of the state probabilities in the terminal.
+/// - `heatmap-file`: Saves the heatmap of the state probabilities to a file.
 /// - `both`: Runs the simulation and visualizes the circuit.
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse the command-line argument
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        eprintln!("Usage: cargo run --example <example_name> -- <result>");
-        eprintln!("result: raw, visual, or both");
-        return;
+        eprintln!("Usage: cargo run --example basic_circuit -- <result>");
+        eprintln!("result: raw, visual, heatmap-terminal, heatmap-file, or both");
+        return Ok(());
     }
     let result = &args[1];
 
@@ -36,15 +38,28 @@ fn main() {
             println!("Visualizing Circuit:");
             circuit.visualize();
         }
+        "heatmap-terminal" => {
+            println!("Generating Heatmap in terminal...");
+            circuit.visualize_heatmap(None)?;
+            println!("Heatmap displayed in terminal.");
+        }
+        "heatmap-file" => {
+            println!("Generating Heatmap...");
+            circuit.visualize_heatmap(Some("examples/circuits/basic_circuit_heatmap.png"))?;
+            println!("Heatmap saved to 'examples/circuits/basic_circuit_heatmap.png'.");
+        }
         "both" => {
             let final_state = circuit.simulate();
             println!("RAW Final statevector: {:?}", final_state);
-            println!("Now running Visual... Circuit:");
+
+            println!("Now running Visual Circuit...");
             thread::sleep(Duration::from_secs(3));
             circuit.visualize();
         }
         _ => {
-            eprintln!("Invalid result argument. Use 'raw', 'visual', or 'both'.");
+            eprintln!("Invalid result argument. Use 'raw', 'visual', 'heatmap-terminal', 'heatmap-file', or 'both'.");
         }
     }
+
+    Ok(())
 }
