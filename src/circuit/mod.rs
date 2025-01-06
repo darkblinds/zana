@@ -228,10 +228,20 @@ impl QuantumCircuit {
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
 
+        // Normalize probabilities to scale them dynamically
+        let max_prob = probabilities.iter().map(|&(_, prob)| prob).fold(0.0, f64::max);
+        let scale_factor = if max_prob > 0.0 { 100.0 / max_prob } else { 1.0 }; // Normalize to 100 if max_prob > 0
+
         let bar_data: Vec<(String, u64)> = probabilities
             .iter()
-            .map(|&(state, prob)| (format!("{:b}", state), (prob * 100.0) as u64))
+            .map(|&(state, prob)| {
+                let scaled_value = (prob * scale_factor).ceil() as u64;
+                let state_binary = format!("{:08b}", state);
+                (state_binary, scaled_value.max(1))
+            })
             .collect();
+
+        // Convert to reference-based data for the bar chart
         let bar_data_refs: Vec<(&str, u64)> = bar_data
             .iter()
             .map(|(state, prob)| (state.as_str(), *prob))
@@ -239,7 +249,8 @@ impl QuantumCircuit {
 
         // Navigation state
         let mut selected_index = 0;
-        
+        let mut start_index = 0; // First visible index
+
         loop {
             // Render UI
             terminal.draw(|frame| {
@@ -276,11 +287,14 @@ impl QuantumCircuit {
                     .label_style(Style::default().fg(Color::Gray))
                     .data(&bar_data_with_highlight);
 
-                // Footer
-                let footer = Paragraph::new(Spans::from(format!(
-                    "Selected State: {}",
-                    bar_data_refs[selected_index].0
-                )))
+                let footer = Paragraph::new(vec![
+                    Spans::from(format!(
+                        "Selected State: {} | Probability: {:.2}%",
+                        bar_data_refs[selected_index].0,
+                        probabilities[selected_index].1 * 100.0, // Display the probability in %
+                    )),
+                    Spans::from("Press 'q' or 'Esc' to exit"), // Add the helpful message
+                ])
                     .style(Style::default().fg(Color::Green))
                     .block(Block::default().borders(Borders::TOP).title("Footer"));
 
