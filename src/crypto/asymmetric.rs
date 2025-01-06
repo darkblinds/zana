@@ -1,4 +1,4 @@
-use rsa::{RsaPrivateKey, RsaPublicKey, PaddingScheme, Pkcs1v15Encrypt};
+use rsa::{RsaPrivateKey, RsaPublicKey, Pkcs1v15Encrypt};
 use rand::rngs::OsRng;
 
 /// Generates an RSA key pair (private and public keys).
@@ -27,7 +27,7 @@ pub fn rsa_encrypt(public_key: &RsaPublicKey, plaintext: &[u8]) -> Vec<u8> {
         .expect("Failed to encrypt")
 }
 
-/// Decrypts data using the RSA private key and PKCS1 v1.5 padding.
+/// Decrypts data using the RSA private key and PKCS1 v.15 padding.
 ///
 /// # Arguments
 /// - `private_key`: The RSA private key.
@@ -43,6 +43,7 @@ pub fn rsa_decrypt(private_key: &RsaPrivateKey, ciphertext: &[u8]) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
+    use rsa::traits::PublicKeyParts;
     use super::*;
 
     #[test]
@@ -54,5 +55,12 @@ mod tests {
         let decrypted = rsa_decrypt(&private_key, &ciphertext);
 
         assert_eq!(decrypted, message, "Decrypted message does not match original");
+    }
+
+    #[test]
+    fn test_rsa_key_generation() {
+        let (private_key, public_key) = generate_rsa_keys();
+
+        assert_eq!(private_key.n(), public_key.n(), "Private and public key moduli do not match");
     }
 }
