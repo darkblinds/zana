@@ -41,11 +41,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Visualizing Circuit:");
             circuit.visualize();
         }
-        "heatmap" => {
+        "heatmap-terminal" => {
             println!("Generating Heatmap...");
-            // circuit.visualize_heatmap(Some("heatmap.png"))?;
             circuit.visualize_heatmap(None)?;
-            println!("Heatmap saved to heatmap.png.");
+            println!("Heatmap Generated on terminal.");
+        }
+        "heatmap-file" => {
+            println!("Generating Heatmap...");
+            circuit.visualize_heatmap(Some("examples/circuits/heatmap.png"))?;
+            println!("Heatmap generated.");
         }
         "both" => {
             // Run simulation first
