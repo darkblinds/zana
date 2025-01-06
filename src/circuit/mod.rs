@@ -241,15 +241,8 @@ impl QuantumCircuit {
             })
             .collect();
 
-        // Convert to reference-based data for the bar chart
-        let bar_data_refs: Vec<(&str, u64)> = bar_data
-            .iter()
-            .map(|(state, prob)| (state.as_str(), *prob))
-            .collect();
-
-        // Navigation state
-        let mut selected_index = 0;
-        let mut start_index = 0; // First visible index
+        let mut selected_index = 0; // Navigation state: currently selected bar
+        let mut start_index = 0;    // The first visible bar index
 
         loop {
             // Render UI
@@ -259,20 +252,34 @@ impl QuantumCircuit {
                     .constraints([Constraint::Min(3), Constraint::Percentage(80), Constraint::Min(3)].as_ref())
                     .split(frame.size());
 
+                let available_width = chunks[1].width as usize;
+                let visible_bar_count = available_width / 8; // Each bar ~8 cells wide (bar + gap)
+                let end_index = (start_index + visible_bar_count).min(bar_data.len());
+
+                // Adjust scrolling window
+                if selected_index >= end_index {
+                    start_index = selected_index + 1 - visible_bar_count;
+                } else if selected_index < start_index {
+                    start_index = selected_index;
+                }
+
+                // Data to display
+                let visible_data = &bar_data[start_index..end_index];
+
                 // Header
                 let header = Paragraph::new(Spans::from("Quantum Heatmap Visualization"))
                     .style(Style::default().fg(Color::Cyan))
                     .block(Block::default().borders(Borders::BOTTOM).title("Header"));
 
-                // Highlight logic: Adjust data styling
-                let bar_data_with_highlight: Vec<(&str, u64)> = bar_data_refs
+                // Highlight the selected bar
+                let bar_data_with_highlight: Vec<(&str, u64)> = visible_data
                     .iter()
                     .enumerate()
-                    .map(|(index, &(label, value))| {
-                        if index == selected_index {
-                            (label, value * 2) // Emphasize the selected bar
+                    .map(|(i, (label, value))| {
+                        if start_index + i == selected_index {
+                            (label.as_str(), value * 2) // Highlighted bar scaled up for emphasis
                         } else {
-                            (label, value)
+                            (label.as_str(), *value)
                         }
                     })
                     .collect();
@@ -280,20 +287,21 @@ impl QuantumCircuit {
                 // Heatmap
                 let bar_chart = BarChart::default()
                     .block(Block::default().title("Quantum State Probabilities").borders(Borders::ALL))
-                    .bar_width(3)
-                    .bar_gap(1)
+                    .bar_width(6) // Tighten the bar size for better visuals
+                    .bar_gap(1)   // Minimal gap between bars
                     .style(Style::default().fg(Color::LightBlue))
                     .value_style(Style::default().fg(Color::Yellow).bg(Color::Black))
                     .label_style(Style::default().fg(Color::Gray))
                     .data(&bar_data_with_highlight);
 
+                // Footer
                 let footer = Paragraph::new(vec![
                     Spans::from(format!(
                         "Selected State: {} | Probability: {:.2}%",
-                        bar_data_refs[selected_index].0,
-                        probabilities[selected_index].1 * 100.0, // Display the probability in %
+                        bar_data[selected_index].0,
+                        probabilities[selected_index].1 * 100.0,
                     )),
-                    Spans::from("Press 'q' or 'Esc' to exit"), // Add the helpful message
+                    Spans::from("Press 'q' or 'Esc' to exit | Use Up/Down to navigate"),
                 ])
                     .style(Style::default().fg(Color::Green))
                     .block(Block::default().borders(Borders::TOP).title("Footer"));
@@ -312,7 +320,7 @@ impl QuantumCircuit {
                         }
                     }
                     KeyCode::Down => {
-                        if selected_index < bar_data_refs.len() - 1 {
+                        if selected_index < bar_data.len() - 1 {
                             selected_index += 1;
                         }
                     }
@@ -328,4 +336,5 @@ impl QuantumCircuit {
 
         Ok(())
     }
+
 }
