@@ -6,14 +6,15 @@ use zana::circuit::{gates, QuantumCircuit};
 /// Takes a command-line argument to control the output:
 /// - `raw`: Runs the simulation and outputs the raw statevector.
 /// - `visual`: Visualizes the circuit.
+/// - `heatmap`: Draws the heatmap of the state probabilities.
 /// - `both`: Runs the simulation and visualizes the circuit.
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse the command-line argument
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         eprintln!("Usage: cargo run --example complex_circuit -- <result>");
-        eprintln!("result: raw, visual, or both");
-        return;
+        eprintln!("result: raw, visual, heatmap, or both");
+        return Ok(());
     }
     let result = &args[1];
 
@@ -40,6 +41,12 @@ fn main() {
             println!("Visualizing Circuit:");
             circuit.visualize();
         }
+        "heatmap" => {
+            println!("Generating Heatmap...");
+            // circuit.visualize_heatmap(Some("heatmap.png"))?;
+            circuit.visualize_heatmap(None)?;
+            println!("Heatmap saved to heatmap.png.");
+        }
         "both" => {
             // Run simulation first
             let final_state = circuit.simulate();
@@ -51,7 +58,9 @@ fn main() {
             circuit.visualize();
         }
         _ => {
-            eprintln!("Invalid result argument. Use 'raw', 'visual', or 'both'.");
+            eprintln!("Invalid result argument. Use 'raw', 'visual', 'heatmap', or 'both'.");
         }
     }
+
+    Ok(())
 }

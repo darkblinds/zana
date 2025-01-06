@@ -18,6 +18,9 @@ sha2 = "0.10"
 aes-gcm = "0.10"
 rsa = { version = "0.9", features = ["std"] }
 num-complex = "0.4.6"
+plotters = "0.3.4"
+ratatui = "0.20"
+crossterm = "0.27"
 subtle = "2.6.1"
 
 [[example]]
