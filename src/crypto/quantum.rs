@@ -35,8 +35,8 @@ pub enum QubitState {
 /// # Examples
 ///
 /// ```
-/// use quantum_crypto::QubitState;
-/// use quantum_crypto::apply_hadamard;
+/// use zana::crypto::quantum::QubitState;
+/// use zana::crypto::quantum::apply_hadamard;
 ///
 /// let qubit = QubitState::Zero;
 /// let new_state = apply_hadamard(qubit);
@@ -60,7 +60,7 @@ pub fn apply_hadamard(qubit: QubitState) -> QubitState {
 /// # Examples
 ///
 /// ```
-/// use quantum_crypto::generate_quantum_random_bit;
+/// use zana::crypto::quantum::generate_quantum_random_bit;
 ///
 /// let bit = generate_quantum_random_bit();
 /// assert!(bit == 0 || bit == 1);
@@ -83,7 +83,7 @@ pub fn generate_quantum_random_bit() -> u8 {
 /// # Examples
 ///
 /// ```
-/// use quantum_crypto::bb84_simulation;
+/// use zana::crypto::quantum::bb84_simulation;
 ///
 /// let (alice_bits, bob_bits) = bb84_simulation();
 /// assert_eq!(alice_bits.len(), bob_bits.len());
@@ -125,7 +125,7 @@ pub fn bb84_simulation() -> (Vec<u8>, Vec<u8>) {
 /// # Examples
 ///
 /// ```
-/// use quantum_crypto::{bb84_simulation, verify_bb84_keys};
+/// use zana::crypto::quantum::{bb84_simulation, verify_bb84_keys};
 ///
 /// let (alice_bits, bob_bits) = bb84_simulation();
 /// let matches = verify_bb84_keys(&alice_bits, &bob_bits);
@@ -149,7 +149,7 @@ pub fn verify_bb84_keys(alice_bits: &[u8], bob_bits: &[u8]) -> usize {
 /// # Examples
 ///
 /// ```
-/// use quantum_crypto::simulate_eavesdropping;
+/// use zana::crypto::quantum::simulate_eavesdropping;
 ///
 /// let (alice_bits, bob_bits, eve_bits) = simulate_eavesdropping();
 /// assert_eq!(alice_bits.len(), bob_bits.len());

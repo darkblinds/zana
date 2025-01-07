@@ -105,9 +105,9 @@ impl QuantumCircuit {
     /// # Example Output
     /// For a circuit with a Hadamard on Q0 and a CNOT (control: Q0, target: Q1):
     /// ```
-    /// Q0: ───H───●─────
-    ///             │
-    /// Q1: ───────⊕─────
+    /// // Q0: ───H───●─────
+    ///             // │
+    /// // Q1: ───────⊕─────
     /// ```
     ///
     /// # Example Usage
