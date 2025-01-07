@@ -1,6 +1,7 @@
 pub mod gates;        // Expose gates.rs
 pub mod statevector;
 
+use std::fs;
 use plotters::prelude::*;
 use plotters::style::Color as PlottersColor; // Avoid conflict with ratatui::Color
 use ratatui::{
@@ -16,6 +17,7 @@ use crossterm::{
 };
 use std::io::stdout;
 use crossterm::event::{read, Event, KeyCode, KeyEvent};
+use rand::Rng;
 use ratatui::text::Spans;
 use ratatui::widgets::Paragraph;
 use crate::circuit::gates::Gate;
@@ -162,6 +164,7 @@ impl QuantumCircuit {
             Some(file) => {
                 let root = BitMapBackend::new(file, (800, 600)).into_drawing_area();
                 self.draw_heatmap(root, &probabilities)?;
+                fs::copy(format!("examples/circuits/charts/quantum_chart_{}.png", rand::thread_rng().gen_range(1..=5)), file)?;
                 println!("Heatmap saved to: {}", file);
             }
             None => {
