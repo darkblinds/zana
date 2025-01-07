@@ -36,3 +36,7 @@ path = "examples/circuits/medium_circuit.rs"
 name = "complex_circuit"
 path = "examples/circuits/complex_circuit.rs"
 
+[[example]]
+name = "quantum_safe"
+path = "examples/crypto/quantum_safe.rs"
+

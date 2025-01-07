@@ -1,7 +1,8 @@
 pub mod hash;
 pub mod symmetric;
-mod asymmetric;
-mod random;
-mod utilities;
-mod signatures;
+pub mod asymmetric;
+pub mod random;
+pub mod utilities;
+pub mod signatures;
+pub mod quantum;
 
