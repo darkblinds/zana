@@ -5,4 +5,5 @@ pub mod random;
 pub mod utilities;
 pub mod signatures;
 pub mod quantum;
+mod post_quantum;
 
