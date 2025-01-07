@@ -12,8 +12,7 @@ blake2 = "0.10"
 hmac = "0.12"
 hex = "0.4"
 rand_core = "0.6"
-chacha20poly1305 = "0.10"
-rand = "0.8"
+rand = { version = "0.8", features = ["std"] }
 sha2 = "0.10"
 aes-gcm = "0.10"
 rsa = { version = "0.9", features = ["std"] }
@@ -22,6 +21,8 @@ plotters = "0.3.4"
 ratatui = "0.20"
 crossterm = "0.27"
 subtle = "2.6.1"
+ed25519-dalek = "1.0"
+base64 = "0.21" # Required for encoding and decoding keys
 
 [[example]]
 name = "basic_circuit"

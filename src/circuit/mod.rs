@@ -16,7 +16,7 @@ use crossterm::{
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, enable_raw_mode, disable_raw_mode},
 };
 use std::io::stdout;
-use crossterm::event::{read, Event, KeyCode, KeyEvent};
+use crossterm::event::{read, Event, KeyCode};
 use rand::Rng;
 use ratatui::text::Spans;
 use ratatui::widgets::Paragraph;
