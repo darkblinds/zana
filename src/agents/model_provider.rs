@@ -2,14 +2,13 @@ use reqwest::Client;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
-/// Represents an AI model that communicates with an external API.
-pub struct AIModel {
+/// Interface for external AI models.
+pub struct ModelProvider {
     pub api_url: String,
     pub client: Client,
 }
 
-impl AIModel {
-    /// Creates a new AIModel with the specified API URL.
+impl ModelProvider {
     pub fn new(api_url: &str) -> Self {
         Self {
             api_url: api_url.to_string(),
@@ -17,15 +16,14 @@ impl AIModel {
         }
     }
 
-    /// Sends the agent's state and environment to the API and retrieves the next action.
     pub async fn decide(
         &self,
-        agent_state: &HashMap<String, String>,
-        environment: &Environment<String>,
+        memory: &HashMap<String, String>,
+        environment: &HashMap<String, String>,
     ) -> Result<String, reqwest::Error> {
         let payload = json!({
-            "agent_state": agent_state,
-            "environment_state": environment.state,
+            "memory": memory,
+            "environment": environment,
         });
 
         let response: Value = self
@@ -38,16 +36,5 @@ impl AIModel {
             .await?;
 
         Ok(response["action"].as_str().unwrap_or("idle").to_string())
-    }
-}
-
-/// Represents a generic environment for agents to operate in.
-pub struct Environment<T> {
-    pub state: HashMap<String, T>,
-}
-
-impl<T> Environment<T> {
-    pub fn new(state: HashMap<String, T>) -> Self {
-        Self { state }
     }
 }

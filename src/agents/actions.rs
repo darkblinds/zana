@@ -1,54 +1,31 @@
-use crate::agents::core::Action;
+use super::agent::Agent;
+use std::collections::HashMap;
 
-/// Predefined action: Rest
-pub fn rest_action<T>() -> Action<T>
-where
-    T: Clone + Default + std::ops::AddAssign,
-{
-    Action::new(
-        "rest",
-        "Regains energy by resting.",
-        |agent, _env| {
-            if let Some(energy) = agent.state.get_mut("energy") {
-                *energy += T::default() + T::default();
-                println!("{} rested and gained energy!", agent.name);
-            }
-        },
-    )
+/// Parameters for actions.
+pub type ActionParams = HashMap<String, String>;
+
+/// Represents an action an agent can perform.
+#[derive(Clone)]
+pub struct Action {
+    pub name: String,
+    pub description: String,
+    pub execute: fn(&mut Agent, ActionParams), // Execution logic
 }
 
-/// Predefined action: Explore
-pub fn explore_action<T>() -> Action<T>
-where
-    T: Clone + Default + std::ops::SubAssign,
-{
-    Action::new(
-        "explore",
-        "Explores the environment, which might be dangerous.",
-        |agent, env| {
-            if let Some(danger) = env.state.get("danger") {
-                if let Some(health) = agent.state.get_mut("health") {
-                    *health -= danger.clone();
-                    println!(
-                        "{} explored a dangerous area and lost health!",
-                        agent.name
-                    );
-                }
-            }
-        },
-    )
-}
+impl Action {
+    pub fn new(
+        name: &str,
+        description: &str,
+        execute: fn(&mut Agent, ActionParams),
+    ) -> Self {
+        Self {
+            name: name.to_string(),
+            description: description.to_string(),
+            execute,
+        }
+    }
 
-/// Predefined action: Retreat
-pub fn retreat_action<T>() -> Action<T>
-where
-    T: Clone + Default,
-{
-    Action::new(
-        "retreat",
-        "Retreats to a safe position.",
-        |_agent, _env| {
-            println!("The agent retreated to safety.");
-        },
-    )
+    pub fn execute(&self, agent: &mut Agent, params: ActionParams) {
+        (self.execute)(agent, params);
+    }
 }

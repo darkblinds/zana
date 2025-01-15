@@ -1,7 +1,7 @@
 pub mod circuit;
 pub mod crypto;
 pub mod gameplay;
-mod agents;
+pub mod agents;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
